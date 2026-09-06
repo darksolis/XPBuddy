@@ -2,7 +2,7 @@
 ## Title: XPBuddy
 ## Notes: Professional XP tracker with XP/hr, ETA, rested XP, and completed-quest XP projection.
 ## Author: Anthony / ChatGPT
-## Version: 2.2.0
+## Version: 2.2.1
 ## SavedVariables: XPBuddyDB
 
 XPBuddy.lua

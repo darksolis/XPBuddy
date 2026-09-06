@@ -1,5 +1,5 @@
 -- XPBuddy - professional XP tracker for WoW 3.3.5a
--- v2.2.0
+-- v2.2.1 - Astral / stock 3.3.5 compatibility
 
 local ADDON = "XPBuddy"
 local MEDIA = "Interface\\AddOns\\XPBuddy\\Textures\\"
@@ -25,6 +25,17 @@ local function EnsureDB()
   if not XPBuddyDB or type(XPBuddyDB) ~= "table" then XPBuddyDB = {} end
   for k, v in pairs(DEFAULTS) do
     if XPBuddyDB[k] == nil then XPBuddyDB[k] = v end
+  end
+end
+
+-- WoW 3.3.5 does not reliably provide Region:SetShown().
+-- Use explicit Show/Hide calls so Astral and stock Wrath clients behave the same.
+local function SetVisible(region, shown)
+  if not region then return end
+  if shown then
+    region:Show()
+  else
+    region:Hide()
   end
 end
 
@@ -208,6 +219,7 @@ local function AccumulateSession()
 end
 
 local function ApplyVisibility()
+  EnsureDB()
   if XPBuddyDB.enabled == false then
     f:Hide()
   else
@@ -216,6 +228,7 @@ local function ApplyVisibility()
 end
 
 local function ApplyAppearance()
+  EnsureDB()
   local fs=XPBuddyDB.fontSize or 12
   f.title:SetFont(GameFontNormalLarge:GetFont(),fs+4,"OUTLINE")
   f.level:SetFont(GameFontHighlight:GetFont(),fs+1,"OUTLINE")
@@ -223,18 +236,19 @@ local function ApplyAppearance()
   f.statRate.value:SetFont(GameFontHighlight:GetFont(),fs,"OUTLINE")
   f.statTime.value:SetFont(GameFontHighlight:GetFont(),fs,"OUTLINE")
   f.statGain.value:SetFont(GameFontHighlight:GetFont(),fs,"OUTLINE")
-  f.art:SetShown(XPBuddyDB.showBackdrop)
-  f.headerGlow:SetShown(XPBuddyDB.showBackdrop)
+  SetVisible(f.art, XPBuddyDB.showBackdrop ~= false)
+  SetVisible(f.headerGlow, XPBuddyDB.showBackdrop ~= false)
   local scale = tonumber(XPBuddyDB.scale) or 1
   if scale < 0.35 then scale = 0.35 end
   if scale > 2.00 then scale = 2.00 end
   f:SetScale(scale)
-  f.lockIcon:SetShown(XPBuddyDB.locked and XPBuddyDB.enabled ~= false)
+  SetVisible(f.lockIcon, XPBuddyDB.locked and XPBuddyDB.enabled ~= false)
   f:EnableMouse(XPBuddyDB.enabled ~= false and not XPBuddyDB.locked)
   ApplyVisibility()
 end
 
 local function Reanchor()
+  EnsureDB()
   f:ClearAllPoints()
   f:SetPoint(XPBuddyDB.point,UIParent,XPBuddyDB.relPoint,XPBuddyDB.x,XPBuddyDB.y)
 end
@@ -280,7 +294,7 @@ local function UpdateTexts()
 
   f.quest:SetMinMaxValues(0,math.max(1,max))
   f.quest:SetValue(projectedXP)
-  if questXP > 0 then f.quest:Show() else f.quest:Hide() end
+  SetVisible(f.quest, questXP > 0)
 
   f.bar:SetMinMaxValues(0,math.max(1,max))
   f.bar:SetValue(xp)
@@ -342,7 +356,8 @@ SlashCmdList["XPBUDDY"]=function(msg)
     XPBuddyDB.enabled=false;ApplyAppearance()
     DEFAULT_CHAT_FRAME:AddMessage("|cffd9a441XPBuddy|r: Disabled.")
   elseif msg=="toggle" then
-    XPBuddyDB.enabled=not (XPBuddyDB.enabled ~= false);ApplyAppearance()
+    XPBuddyDB.enabled = (XPBuddyDB.enabled == false)
+    ApplyAppearance()
     DEFAULT_CHAT_FRAME:AddMessage("|cffd9a441XPBuddy|r: "..(XPBuddyDB.enabled and "Enabled." or "Disabled."))
   else
     InterfaceOptionsFrame_OpenToCategory(ADDON)
@@ -400,6 +415,7 @@ local function ScalePreset(label, value, anchor, x)
   if anchor then b:SetPoint("LEFT",anchor,"RIGHT",6,0) else b:SetPoint("TOPLEFT",scaleSL,"BOTTOMLEFT",0,-18) end
   b:SetText(label)
   b:SetScript("OnClick",function()
+    EnsureDB()
     XPBuddyDB.scale=value
     scaleSL:SetValue(value)
     ApplyAppearance()
@@ -420,16 +436,17 @@ resetPosBtn:SetSize(160,22)
 resetPosBtn:SetPoint("LEFT",resetSessionBtn,"RIGHT",10,0)
 resetPosBtn:SetText("Reset Position")
 
-enableCB:SetScript("OnClick",function(self) XPBuddyDB.enabled=self:GetChecked() and true or false;ApplyAppearance() end)
-lockCB:SetScript("OnClick",function(self) XPBuddyDB.locked=self:GetChecked() and true or false;ApplyAppearance() end)
-backCB:SetScript("OnClick",function(self) XPBuddyDB.showBackdrop=self:GetChecked() and true or false;ApplyAppearance() end)
-autoCB:SetScript("OnClick",function(self) XPBuddyDB.autoResetOnLogin=self:GetChecked() and true or false end)
+enableCB:SetScript("OnClick",function(self) EnsureDB(); XPBuddyDB.enabled = self:GetChecked() and true or false; ApplyAppearance() end)
+lockCB:SetScript("OnClick",function(self) EnsureDB(); XPBuddyDB.locked = self:GetChecked() and true or false; ApplyAppearance() end)
+backCB:SetScript("OnClick",function(self) EnsureDB(); XPBuddyDB.showBackdrop = self:GetChecked() and true or false; ApplyAppearance() end)
+autoCB:SetScript("OnClick",function(self) EnsureDB(); XPBuddyDB.autoResetOnLogin = self:GetChecked() and true or false end)
 scaleSL:SetScript("OnValueChanged",function(self,val)
+  EnsureDB()
   XPBuddyDB.scale=tonumber(string.format("%.2f",val))
   scaleValue:SetText(string.format("%d%%",math.floor((XPBuddyDB.scale*100)+0.5)))
   ApplyAppearance()
 end)
-fontSL:SetScript("OnValueChanged",function(self,val) XPBuddyDB.fontSize=math.floor(val+.5);ApplyAppearance() end)
+fontSL:SetScript("OnValueChanged",function(self,val) EnsureDB(); XPBuddyDB.fontSize=math.floor(val+.5);ApplyAppearance() end)
 resetSessionBtn:SetScript("OnClick",function() ResetSession();UpdateTexts() end)
 resetPosBtn:SetScript("OnClick",function()
   XPBuddyDB.point,XPBuddyDB.relPoint,XPBuddyDB.x,XPBuddyDB.y="CENTER","CENTER",0,120
